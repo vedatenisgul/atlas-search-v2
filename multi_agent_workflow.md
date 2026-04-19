@@ -32,13 +32,13 @@ The `@product_prd.md` reference injected the global project requirements into ev
 
 | Agent | Tool | Phase | Responsibility |
 |---|---|---|---|
-| Architect Agent | Claude.ai | 1 | System design, folder scaffold, module boundaries, API contracts |
+| Architect Agent | Cursor Composer | 1 | System design, folder scaffold, module boundaries, API contracts |
 | Crawler Agent | Cursor Composer | 2 | Crawl loop, fetch, global dedup, backpressure, queue |
 | Indexer Agent | Cursor Composer | 3 | Trie structure, text indexing, ETL persistence, cascading deletes |
 | Search Agent | Cursor Composer | 4 | Query pipeline, ranking, pagination, Turkish locale fold |
 | API Agent | Cursor Composer | 5 (Ad-hoc) | FastAPI application factory, routing layer, subsystem integration |
 | UI Agent | Cursor Composer | 6 | Frontend templates, Tailwind CSS, Alpine.js reactivity |
-| QA & Test Agent | Claude.ai | 7 | Code review, bug fixing, automated test suite generation (pytest) |
+| QA & Test Agent | Cursor Composer | 7 | Code review, bug fixing, automated test suite generation (pytest) |
 
 ---
 
@@ -79,7 +79,7 @@ Each arrow represents a sequential handoff. The orchestrator reviewed the output
 
 ### Agent 1 — Architect Agent
 **Role:** System Designer  
-**Tool:** Claude.ai  
+**Tool:** Cursor Composer (dedicated tab)  
 **Phase:** Phase 1 — before any code is written
 
 ---
@@ -417,7 +417,7 @@ All template and static files passed to QA & Test Agent for final review.
 
 ### Agent 7 — QA & Test Agent
 **Role:** Quality Assurance & Test Engineer  
-**Tool:** Claude.ai  
+**Tool:** Cursor Composer (dedicated tab)  
 **Phase:** Phase 7 — final audit after all subsystems are integrated
 
 ---
