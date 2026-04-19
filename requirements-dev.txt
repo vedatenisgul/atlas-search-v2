@@ -1,0 +1,7 @@
+# Test-only dependencies.
+# Install with: pip install -r requirements-dev.txt
+#
+# httpx is required by starlette.testclient (FastAPI's TestClient). It is
+# not imported by the application itself — only the test suite touches it.
+pytest>=7.0
+httpx>=0.24

@@ -1,0 +1,259 @@
+{#
+  search.html — Search interface.
+
+  PRD refs: §2.2 search(query), §8 GET /api/search.
+
+  Alpine component: searchBrowser (see static/js/app.js). Results are bound
+  reactively — submitting the form swaps the results list in place without
+  a page reload and without flickering.
+
+  Owner agent: UI Agent.
+#}
+{% extends "base.html" %}
+
+{% block title %}Search · Atlas Search{% endblock %}
+{% block page %}search{% endblock %}
+
+{% block content %}
+<section x-data="searchBrowser" x-cloak class="space-y-6">
+  {# ========================================================= page header #}
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-white">Search</h1>
+      <p class="mt-1 text-sm text-slate-400">
+        Ranked by
+        <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-emerald-300">
+          (freq × 10) + 1000 − (depth × 5)
+        </code>.
+        Concurrent-safe while crawlers index.
+      </p>
+    </div>
+    <a href="/crawler"
+       class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white">
+      <i class="fa-solid fa-plus text-[11px]"></i>
+      New job
+    </a>
+  </div>
+
+  {# ========================================================= search form #}
+  <form @submit.prevent="submit" novalidate class="flex items-stretch gap-2">
+    <div class="flex flex-1 items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 focus-within:border-sky-400/50 focus-within:shadow-glow-sky">
+      <i class="fa-solid fa-magnifying-glass text-xs text-slate-500"></i>
+      <input
+        type="search"
+        x-model="query"
+        placeholder="Search the index…"
+        autocomplete="off"
+        autofocus
+        class="w-full border-0 bg-transparent p-0 font-mono text-sm text-white placeholder:text-slate-500 focus:ring-0"
+      />
+      <template x-if="loading">
+        <i class="fa-solid fa-spinner fa-spin text-xs text-sky-300"></i>
+      </template>
+      <template x-if="!loading && query">
+        <button
+          type="button"
+          @click="query = ''; submit()"
+          class="text-slate-500 transition hover:text-slate-200"
+          aria-label="Clear query"
+        >
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </template>
+    </div>
+    <button
+      type="submit"
+      :disabled="loading"
+      class="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/20 px-4 text-sm font-semibold text-sky-100 shadow-glow-sky transition hover:bg-sky-500/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <template x-if="loading"><i class="fa-solid fa-spinner fa-spin text-xs"></i></template>
+      <template x-if="!loading"><i class="fa-solid fa-arrow-right text-xs"></i></template>
+      <span>Search</span>
+    </button>
+  </form>
+
+  {# ========================================================= meta row #}
+  <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+    <div class="text-slate-400">
+      {# default #}
+      <template x-if="!lastQuery && !loading && !error">
+        <span>Enter a query to begin.</span>
+      </template>
+      {# loading #}
+      <template x-if="loading">
+        <span class="inline-flex items-center gap-2 text-sky-300">
+          <i class="fa-solid fa-spinner fa-spin text-[10px]"></i>
+          Searching<span x-text="lastQuery ? ' ' + lastQuery : ''"></span>…
+        </span>
+      </template>
+      {# success with results #}
+      <template x-if="!loading && !error && results.length > 0">
+        <span class="inline-flex flex-wrap items-center gap-2">
+          <span
+            class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-200 shadow-glow-emerald"
+          >
+            <i class="fa-solid fa-list-ol text-[10px]"></i>
+            <span x-text="totalText"></span>
+          </span>
+          <span class="text-white" x-text="rangeText"></span>
+          <span class="text-slate-600">·</span>
+          <span>page <span x-text="pageNumber"></span>
+            <template x-if="total > 0">
+              <span>/ <span x-text="totalPages"></span></span>
+            </template>
+          </span>
+          <span class="text-slate-600">·</span>
+          <span>for
+            <span class="font-mono text-white" x-text="'&quot;' + lastQuery + '&quot;'"></span>
+          </span>
+        </span>
+      </template>
+      {# empty #}
+      <template x-if="showEmptyState">
+        <span>No results for
+          <span class="font-mono text-white" x-text="'&quot;' + lastQuery + '&quot;'"></span>.
+        </span>
+      </template>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <template x-if="error">
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-400/30 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-300 shadow-glow-rose">
+          <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+          <span x-text="error"></span>
+        </span>
+      </template>
+      <template x-if="!error && !loading && results.length > 0">
+        <span class="font-mono text-[11px] text-slate-400">
+          <span x-text="elapsedMs"></span> ms
+        </span>
+      </template>
+    </div>
+  </div>
+
+  {# ========================================================= results #}
+  <div class="fade-swap space-y-3" aria-live="polite">
+    {# Skeleton on very first load (no results yet, loading true) #}
+    <template x-if="loading && results.length === 0">
+      <div class="space-y-3">
+        <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
+          <div class="skeleton h-4 w-2/3"></div>
+          <div class="skeleton mt-2 h-3 w-1/2"></div>
+          <div class="skeleton mt-3 h-3 w-full"></div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
+          <div class="skeleton h-4 w-1/2"></div>
+          <div class="skeleton mt-2 h-3 w-1/3"></div>
+          <div class="skeleton mt-3 h-3 w-5/6"></div>
+        </div>
+      </div>
+    </template>
+
+    {# Empty state after a search #}
+    <template x-if="showEmptyState">
+      <div class="rounded-2xl border border-dashed border-white/10 bg-slate-800/40 p-10 text-center text-sm text-slate-300 shadow-inner">
+        <i class="fa-regular fa-face-smile mb-3 block text-2xl text-slate-400"></i>
+        <p class="text-base font-medium text-slate-200">
+          No results found for
+          <span class="font-mono text-white" x-text="'&quot;' + lastQuery + '&quot;'"></span>
+        </p>
+        <p class="mt-1 text-xs text-slate-400">
+          Try a different term, loosen your spelling, or start another crawl to widen the index.
+        </p>
+      </div>
+    </template>
+
+    {# Error state #}
+    <template x-if="error && !loading">
+      <div class="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-6 text-sm text-rose-200 shadow-glow-rose">
+        <div class="flex items-center gap-2 font-semibold">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          Search failed
+        </div>
+        <p class="mt-1 text-rose-300/90" x-text="error"></p>
+      </div>
+    </template>
+
+    {# Result cards — keyed by url so Alpine reuses identical hits across
+       pagination transitions, which is the key to a flicker-free swap. #}
+    <template x-for="(r, i) in results" :key="r.url || ('idx:' + i)">
+      <article class="group rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur transition hover:border-sky-400/30 hover:bg-white/[0.06]">
+        <h2 class="text-base font-semibold text-white" x-text="r.title"></h2>
+        <a
+          :href="r.url"
+          target="_blank" rel="noopener"
+          class="mt-0.5 block break-all font-mono text-[12px] text-sky-300 hover:text-sky-200 hover:underline"
+          x-text="r.url"
+        ></a>
+        <p
+          x-show="r.snippet"
+          class="mt-3 text-sm leading-relaxed text-slate-400"
+          x-text="r.snippet"
+        ></p>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-slate-300">
+            <i class="fa-solid fa-layer-group text-[10px] text-slate-500"></i>
+            depth <span class="ml-0.5 font-mono text-white" x-text="r.depth != null ? r.depth : '—'"></span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-slate-300">
+            <i class="fa-solid fa-chart-column text-[10px] text-violet-300"></i>
+            freq <span class="ml-0.5 font-mono text-white" x-text="r.frequency != null ? r.frequency : '—'"></span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-200">
+            <i class="fa-solid fa-bolt text-[10px]"></i>
+            score <span class="ml-0.5 font-mono" x-text="r.relevance_score != null ? r.relevance_score : '—'"></span>
+          </span>
+          <template x-if="r.origin_url">
+            <a
+              :href="r.origin_url"
+              :title="r.origin_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              @click.stop
+              class="group/origin inline-flex max-w-[22ch] items-center gap-1.5 truncate rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-slate-300 transition hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-200 focus:outline-none focus-visible:border-sky-400/60 focus-visible:ring-2 focus-visible:ring-sky-400/40"
+            >
+              <i class="fa-solid fa-location-crosshairs text-[10px] transition group-hover/origin:text-sky-300"></i>
+              <span class="shrink-0">origin</span>
+              <span class="truncate font-mono text-slate-200 transition group-hover/origin:text-sky-100" x-text="r.origin_url"></span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-slate-500 transition group-hover/origin:text-sky-300"></i>
+            </a>
+          </template>
+        </div>
+      </article>
+    </template>
+  </div>
+
+  {# ========================================================= pagination #}
+  <nav
+    x-show="paginationVisible"
+    x-transition.opacity
+    class="flex items-center justify-between gap-3 border-t border-white/5 pt-4"
+    aria-label="Results pagination"
+  >
+    <button
+      type="button"
+      @click="prev()"
+      :disabled="prevDisabled"
+      class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <i class="fa-solid fa-arrow-left text-[10px]"></i>
+      Previous
+    </button>
+    <div class="font-mono text-[11px] text-slate-400">
+      page <span class="text-white" x-text="pageNumber"></span>
+      <template x-if="total > 0">
+        <span> / <span class="text-white" x-text="totalPages"></span></span>
+      </template>
+    </div>
+    <button
+      type="button"
+      @click="next()"
+      :disabled="nextDisabled"
+      class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Next
+      <i class="fa-solid fa-arrow-right text-[10px]"></i>
+    </button>
+  </nav>
+</section>
+{% endblock %}

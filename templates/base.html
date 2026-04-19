@@ -1,0 +1,115 @@
+{#
+  base.html — Jinja2 layout template.
+
+  PRD refs: §2.3 UI / Monitoring, §3 System Architecture.
+
+  Phase 5.2 Reactive Pivot: Tailwind CSS + Alpine.js + FontAwesome (all via CDN).
+  Strict dark mode, floating glass navbar, neon status colors.
+
+  Blocks: title, head, page, content, scripts.
+  The `page` block is rendered into <body data-page="..."> and used by
+  app.js to highlight the current nav link.
+
+  Owner agent: UI Agent.
+#}
+<!doctype html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Atlas Search{% endblock %}</title>
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#020617" />
+
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%2338bdf8'/></svg>" />
+
+  {# Tailwind Play CDN — zero-build-step utility CSS. #}
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+          },
+          boxShadow: {
+            'glow-emerald': '0 0 22px -4px rgba(16, 185, 129, 0.55), inset 0 0 0 1px rgba(16, 185, 129, 0.35)',
+            'glow-amber':   '0 0 22px -4px rgba(245, 158, 11, 0.55), inset 0 0 0 1px rgba(245, 158, 11, 0.35)',
+            'glow-rose':    '0 0 22px -4px rgba(244, 63, 94, 0.55),  inset 0 0 0 1px rgba(244, 63, 94, 0.35)',
+            'glow-sky':     '0 0 22px -4px rgba(56, 189, 248, 0.55), inset 0 0 0 1px rgba(56, 189, 248, 0.35)',
+          },
+        }
+      }
+    }
+  </script>
+
+  {# FontAwesome icons. #}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+
+  {# Atlas extras: x-cloak, scrollbar, neon pulse. #}
+  <link rel="stylesheet" href="/static/css/style.css" />
+
+  {# Server-rendered config snapshot. Single source of truth for polling
+     cadences and form defaults — read from ``core/config.py`` at request
+     time and consumed by ``static/js/app.js`` via ``window.ATLAS_CONFIG``.
+     Must land before ``app.js`` so the Alpine components see it during
+     ``alpine:init`` (they cache the values into local constants). #}
+  <script>window.ATLAS_CONFIG = {{ atlas_config | tojson }};</script>
+
+  {# Atlas Alpine components. Must load BEFORE the Alpine CDN so our
+     `alpine:init` listener is registered before Alpine dispatches the
+     event via queueMicrotask on start. Reversing these two tags causes
+     every x-data / $store binding to throw "Can't find variable" errors. #}
+  <script defer src="/static/js/app.js"></script>
+
+  {# Alpine.js — lightweight reactive framework (exact URL per spec). #}
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  {% block head %}{% endblock %}
+</head>
+<body
+  data-page="{% block page %}index{% endblock %}"
+  class="min-h-full bg-slate-950 font-sans text-slate-200 antialiased selection:bg-sky-500/40 selection:text-white"
+>
+  {# ------------------------------------------------------------ navbar
+     Floating sticky glassmorphism header — sits above content with
+     a translucent dark surface and a backdrop blur. No solid gray block. #}
+  <header class="sticky top-0 z-50 bg-slate-950/60 backdrop-blur-md border-b border-white/10">
+    <div class="mx-auto flex max-w-7xl justify-between items-center gap-5 px-5 py-3">
+      <a href="/" class="flex items-center gap-2 text-sm font-semibold tracking-tight text-white">
+        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-sky-500/30 to-violet-500/30 text-sky-300 shadow-glow-sky">
+          <i class="fa-solid fa-compass text-[13px]"></i>
+        </span>
+        <span>Atlas Search</span>
+      </a>
+
+      <div class="flex items-center gap-4">
+        <nav aria-label="Primary" class="flex items-center gap-1">
+          <a data-nav="crawler" href="/crawler" class="nav-link">
+            <i class="fa-solid fa-spider mr-1.5 text-[11px] opacity-80"></i>Crawler
+          </a>
+          <a data-nav="status" href="/status" class="nav-link">
+            <i class="fa-solid fa-gauge-high mr-1.5 text-[11px] opacity-80"></i>Status
+          </a>
+          <a data-nav="search" href="/search" class="nav-link">
+            <i class="fa-solid fa-magnifying-glass mr-1.5 text-[11px] opacity-80"></i>Search
+          </a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto w-full max-w-7xl px-5 pb-24 pt-10">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

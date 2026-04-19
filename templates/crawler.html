@@ -1,0 +1,236 @@
+{#
+  crawler.html — Crawl job creation page.
+
+  PRD refs: §2.3 UI / Monitoring, §8 POST /api/crawler/create.
+
+  Alpine component: crawlerForm (see static/js/app.js).
+
+  Owner agent: UI Agent.
+#}
+{% extends "base.html" %}
+
+{% block title %}Crawler · Atlas Search{% endblock %}
+{% block page %}crawler{% endblock %}
+
+{% block content %}
+<section x-data="crawlerForm" x-cloak class="space-y-8">
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-white">Crawler</h1>
+    <p class="mt-1 text-sm text-slate-400">
+      Seed a new BFS crawl job. Workers fetch, parse, index, and enqueue children.
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/status"
+       class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white">
+      <i class="fa-solid fa-gauge-high text-[11px]"></i>
+      Open status dashboard
+      <i class="fa-solid fa-arrow-right text-[10px]"></i>
+    </a>
+
+    {# ------------------------------------------------- danger zone
+       Reset all data + history. Fires POST /api/system/reset which
+       stops every running worker, clears the AtlasTrie index, and
+       resets the NoSQLStore to its default schema. Guarded by a
+       two-step confirm() inside the Alpine component. #}
+    <button
+      type="button"
+      @click="resetAll()"
+      :disabled="resetting"
+      class="inline-flex items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-200 shadow-glow-rose transition hover:bg-rose-500/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <template x-if="resetting">
+        <i class="fa-solid fa-spinner fa-spin text-[11px]"></i>
+      </template>
+      <template x-if="!resetting">
+        <i class="fa-solid fa-trash-can-arrow-up text-[11px]"></i>
+      </template>
+      <span x-text="resetting ? 'Resetting…' : 'Reset all'"></span>
+    </button>
+  </div>
+</div>
+  {# -------------------------------------------------------------- form card #}
+  <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
+    <header class="mb-5 flex items-start justify-between gap-4">
+      <div>
+        <h2 class="flex items-center gap-2 text-base font-semibold text-white">
+          <i class="fa-solid fa-plus-circle text-sky-300"></i>
+          Create job
+        </h2>
+        <p class="mt-0.5 font-mono text-xs text-slate-400">POST /api/crawler/create</p>
+      </div>
+      <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
+        <i class="fa-solid fa-shield-halved text-emerald-300"></i>
+        SSRF-guarded
+      </span>
+    </header>
+
+    <form @submit.prevent="submit" novalidate class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {# Seed URL (full width) #}
+      <label class="md:col-span-2 block">
+        <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-300">Seed URL</span>
+        <div class="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-800/50 px-3 py-2 focus-within:border-sky-400/50 focus-within:shadow-glow-sky">
+          <i class="fa-solid fa-link text-xs text-slate-400"></i>
+          <input
+            type="url"
+            x-model="form.seed_url"
+            placeholder="https://example.com"
+            autocomplete="off"
+            required
+            class="w-full border-0 bg-transparent p-0 font-mono text-sm text-white placeholder:text-slate-400 focus:ring-0"
+          />
+        </div>
+        <span class="mt-1 block text-[11px] text-slate-400">
+          HTTP/HTTPS only. Private, loopback, and link-local ranges are rejected by SSRF checks.
+        </span>
+      </label>
+
+      {# Max depth #}
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-300">Max depth (k)</span>
+        <input
+          type="number" min="0" max="32" step="1"
+          x-model.number="form.max_depth"
+          class="block w-full rounded-xl border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/50 focus:ring-0"
+        />
+        <span class="mt-1 block text-[11px] text-slate-400">Depth 0 indexes only the seed URL.</span>
+      </label>
+
+      {# Hit rate #}
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-300">Hit rate (req/s)</span>
+        <input
+          type="number" min="0.1" max="20" step="0.1"
+          x-model.number="form.hit_rate"
+          class="block w-full rounded-xl border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/50 focus:ring-0"
+        />
+        <span class="mt-1 block text-[11px] text-slate-400">Worker sleeps <code class="font-mono text-[11px] text-sky-300">1 / hit_rate</code> seconds between fetches.</span>
+      </label>
+
+      {# Queue capacity #}
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-300">Queue capacity</span>
+        <input
+          type="number" min="10" max="1000000" step="1"
+          x-model.number="form.max_capacity"
+          class="block w-full rounded-xl border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/50 focus:ring-0"
+        />
+        <span class="mt-1 block text-[11px] text-slate-400">Backpressure engages at 80% fill.</span>
+      </label>
+
+      {# Max URLs #}
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-300">Max URLs</span>
+        <input
+          type="number" min="1" max="1000000" step="1"
+          x-model.number="form.max_urls"
+          class="block w-full rounded-xl border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/50 focus:ring-0"
+        />
+        <span class="mt-1 block text-[11px] text-slate-400">Total pages indexed before the job terminates.</span>
+      </label>
+
+      {# Actions #}
+      <div class="md:col-span-2 mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-4">
+        <p
+          class="text-xs"
+          :class="statusClass()"
+          x-text="status.message"
+          x-show="status.message"
+          x-transition.opacity
+          aria-live="polite"
+        ></p>
+        <div class="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            @click="reset()"
+            class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+          >
+            <i class="fa-solid fa-rotate-left text-[11px]"></i>
+            Reset
+          </button>
+          <button
+            type="submit"
+            :disabled="submitting"
+            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-glow-sky transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <template x-if="submitting">
+              <i class="fa-solid fa-spinner fa-spin text-xs"></i>
+            </template>
+            <template x-if="!submitting">
+              <i class="fa-solid fa-play text-xs"></i>
+            </template>
+            <span x-text="submitting ? 'Starting…' : 'Start Crawl'"></span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ---------------------------------------------------- recently-created card #}
+  <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
+    <header class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h2 class="flex items-center gap-2 text-base font-semibold text-white">
+          <i class="fa-solid fa-clock-rotate-left text-violet-300"></i>
+          Recently created
+        </h2>
+        <p class="mt-0.5 text-xs text-slate-400">Last five jobs started in this session.</p>
+      </div>
+      <a href="/status" class="text-xs font-semibold text-sky-300 hover:text-sky-200">
+        View all
+        <i class="fa-solid fa-arrow-right ml-1 text-[10px]"></i>
+      </a>
+    </header>
+
+    {# Empty state #}
+    <div
+      x-show="recent.length === 0"
+      x-transition.opacity
+      class="rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-6 text-center text-sm text-slate-400"
+    >
+      No jobs created yet.
+    </div>
+
+    {# List — keyed by job_id + created_at so Alpine can reuse nodes #}
+    <ul x-show="recent.length > 0" class="space-y-2">
+      <template x-for="entry in recent" :key="(entry.job_id || entry.seed_url) + ':' + entry.created_at">
+        <li
+          @click="openRecent(entry)"
+          class="group flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 transition hover:border-sky-400/30 hover:bg-slate-900/80"
+        >
+          <div class="min-w-0 flex-1">
+            <div class="truncate font-medium text-white" x-text="entry.seed_url || '(unknown)'"></div>
+            <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              <span class="font-mono" x-text="entry.job_id || 'pending…'"></span>
+              <span>·</span>
+              <span>depth <span x-text="entry.max_depth"></span></span>
+              <span>·</span>
+              <span><span x-text="entry.hit_rate"></span> req/s</span>
+              <span>·</span>
+              <span x-text="$store.fmt.datetime(entry.created_at)"></span>
+            </div>
+          </div>
+
+          {# Live telemetry joined from /api/crawler/list + /api/crawler/history.
+             Shows "crawled N / max_urls" and a status pill that will flip to
+             "deleted" once the user deletes the job from the Status page. #}
+          <div class="flex flex-shrink-0 items-center gap-3">
+            <div class="text-right">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                URLs
+              </div>
+              <div class="font-mono text-sm text-white" x-text="recentCrawledLabel(entry)"></div>
+            </div>
+            <span :class="$store.fmt.pillClass(recentStatusLabel(entry))">
+              <span :class="$store.fmt.dotClass(recentStatusLabel(entry))"></span>
+              <span class="capitalize" x-text="recentStatusLabel(entry)"></span>
+            </span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-sky-300"></i>
+          </div>
+        </li>
+      </template>
+    </ul>
+  </div>
+</section>
+{% endblock %}

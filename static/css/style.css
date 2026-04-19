@@ -1,0 +1,141 @@
+/*
+ * style.css — Atlas Search frontend extras.
+ *
+ * PRD refs: §2.3 UI / Monitoring.
+ *
+ * Scope: only what Tailwind utility classes cannot express cleanly:
+ *   - x-cloak support (hide Alpine shells until the component inits)
+ *   - Strict dark base color (belt + suspenders with body's bg-slate-950)
+ *   - Custom thin scrollbar for the log panel
+ *   - Neon pulse keyframe for the "live" dot
+ *   - Skeleton shimmer for first-load placeholders
+ *   - Shared .nav-link visual for the primary nav (keeps markup short)
+ *
+ * Everything else is Tailwind utilities applied inline in the templates.
+ *
+ * Owner agent: UI Agent.
+ */
+
+/* ============================================================ x-cloak */
+
+[x-cloak] { display: none !important; }
+
+/* ============================================================ dark base */
+
+/* Strict dark mode. Explicit on both elements so the page is readable
+ * even if the Tailwind CDN is slow to load or blocked. */
+html, body {
+  background-color: #020617; /* slate-950 */
+  color: rgb(226, 232, 240); /* slate-200 */
+}
+
+/* ============================================================ nav link */
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(148, 163, 184);        /* slate-400 */
+  border: 1px solid transparent;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+.nav-link:hover {
+  color: rgb(226, 232, 240);        /* slate-200 */
+  background: rgba(255, 255, 255, 0.04);
+}
+.nav-link.is-active {
+  color: white;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+/* ============================================================ scrollbar */
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.25) transparent; }
+.scroll-thin::-webkit-scrollbar         { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-track   { background: transparent; }
+.scroll-thin::-webkit-scrollbar-thumb   { background: rgba(148, 163, 184, 0.22); border-radius: 4px; }
+.scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.40); }
+
+/* ============================================================ neon pulse */
+
+@keyframes atlas-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(1.35); }
+}
+
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: rgb(52, 211, 153);    /* emerald-400 */
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.9);
+}
+.live-dot::after {
+  content: "";
+  position: absolute; inset: -3px;
+  border-radius: 9999px;
+  background: rgba(52, 211, 153, 0.5);
+  animation: atlas-pulse 1.8s ease-in-out infinite;
+  z-index: -1;
+}
+
+.live-dot--amber { background: rgb(251, 191, 36); box-shadow: 0 0 10px rgba(251, 191, 36, 0.9); }
+.live-dot--amber::after { background: rgba(251, 191, 36, 0.5); }
+.live-dot--rose  { background: rgb(244, 63, 94);  box-shadow: 0 0 10px rgba(244, 63, 94, 0.9); }
+.live-dot--rose::after  { background: rgba(244, 63, 94, 0.5); }
+.live-dot--slate { background: rgb(148, 163, 184); box-shadow: none; }
+.live-dot--slate::after { display: none; }
+
+/* ============================================================ skeleton */
+
+@keyframes atlas-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0;  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: atlas-shimmer 1.6s linear infinite;
+  border-radius: 6px;
+}
+
+/* ============================================================ misc */
+
+/* Smooth value transitions for metric numbers — keeps 2s poll updates calm. */
+.metric-value {
+  transition: color 180ms ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.fade-swap > * {
+  transition: opacity 150ms ease;
+}
+
+/* Suppress the browser-native clear glyph (WebKit ×, IE/Edge cross) on
+ * <input type="search"> fields. The Alpine-rendered fa-xmark button in
+ * templates/search.html is the single source of truth for "clear query",
+ * and the native affordance was rendering as a redundant second X. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+input[type="search"]::-ms-clear,
+input[type="search"]::-ms-reveal {
+  display: none;
+  width: 0;
+  height: 0;
+}

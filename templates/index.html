@@ -1,0 +1,142 @@
+{#
+  index.html — Landing page.
+
+  PRD refs: §2.3 UI / Monitoring.
+
+  Entry point linking to /crawler, /status, /search.
+
+  Owner agent: UI Agent.
+#}
+{% extends "base.html" %}
+
+{% block title %}Atlas Search{% endblock %}
+{% block page %}index{% endblock %}
+
+{% block content %}
+<section class="relative pb-16 pt-8">
+  <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-300 backdrop-blur">
+    <i class="fa-solid fa-bolt text-[10px]"></i>
+    Zero-dependency search infrastructure
+  </div>
+
+  <h1 class="max-w-4xl text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl">
+    A self-contained crawler and
+    <span class="bg-gradient-to-r from-sky-300 via-violet-300 to-emerald-300 bg-clip-text text-transparent">
+      real-time search engine
+    </span>
+    built on Python's standard library.
+  </h1>
+
+  <p class="mt-5 max-w-2xl text-base leading-relaxed text-slate-400">
+    Atlas Search replaces Scrapy, Elasticsearch, Redis, and PostgreSQL with
+    hand-rolled, thread-safe, in-memory primitives: an
+    <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-sky-300">RLock</code>-guarded
+    trie, a SHA-256 deduped frontier, and a JSON-flushed NoSQL store.
+  </p>
+
+  <div class="mt-8 flex flex-wrap items-center gap-3">
+    <a href="/crawler"
+       class="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/10 px-4 py-2.5 text-sm font-semibold text-sky-100 shadow-glow-sky transition hover:bg-sky-500/20 hover:text-white">
+      <i class="fa-solid fa-play text-xs"></i>
+      Start a crawl
+    </a>
+    <a href="/search"
+       class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white">
+      <i class="fa-solid fa-magnifying-glass text-xs"></i>
+      Run a search
+    </a>
+    <a href="/status"
+       class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-white/20 hover:bg-white/10 hover:text-white">
+      <i class="fa-solid fa-gauge-high text-xs"></i>
+      View status
+    </a>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 gap-5 md:grid-cols-3">
+  <a href="/crawler"
+     class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-sky-400/40 hover:bg-white/[0.08]">
+    <div class="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/40 bg-sky-500/10 text-sky-300 shadow-glow-sky">
+      <i class="fa-solid fa-spider"></i>
+    </div>
+    <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">01 — Crawler</div>
+    <h2 class="mt-1 text-lg font-semibold text-white">Seed a crawl job</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+      Configure depth, hit rate, and queue capacity. Backpressure and rate limiting are built into every worker thread.
+    </p>
+    <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-400/40 to-transparent opacity-0 transition group-hover:opacity-100"></span>
+  </a>
+
+  <a href="/status"
+     class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-violet-400/40 hover:bg-white/[0.08]">
+    <div class="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-violet-400/40 bg-violet-500/10 text-violet-300 shadow-[0_0_22px_-4px_rgba(168,85,247,0.55)]">
+      <i class="fa-solid fa-gauge-high"></i>
+    </div>
+    <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">02 — Status</div>
+    <h2 class="mt-1 text-lg font-semibold text-white">Telemetry &amp; controls</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+      A live 6-card dashboard, streaming logs, and pause / resume / stop controls for every running job.
+    </p>
+    <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent opacity-0 transition group-hover:opacity-100"></span>
+  </a>
+
+  <a href="/search"
+     class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur transition hover:border-emerald-400/40 hover:bg-white/[0.08]">
+    <div class="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 shadow-glow-emerald">
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </div>
+    <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">03 — Search</div>
+    <h2 class="mt-1 text-lg font-semibold text-white">Query the index</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+      Rank by
+      <code class="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px] text-emerald-300">(freq × 10) + 1000 − (depth × 5)</code>
+      with Turkish locale folding and paginated result cards.
+    </p>
+    <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent opacity-0 transition group-hover:opacity-100"></span>
+  </a>
+</section>
+
+<section class="mt-14 rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">
+  <div class="flex flex-wrap items-baseline justify-between gap-3">
+    <div>
+      <h3 class="text-base font-semibold text-white">Architecture at a glance</h3>
+      <p class="mt-1 text-sm text-slate-400">Every layer is hand-rolled on the Python standard library.</p>
+    </div>
+    <a href="/crawler" class="text-xs font-semibold text-sky-300 hover:text-sky-200">
+      Start a crawl
+      <i class="fa-solid fa-arrow-right ml-1 text-[10px]"></i>
+    </a>
+  </div>
+
+  <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+      <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        <i class="fa-solid fa-list-ul text-sky-300"></i> Queue
+      </div>
+      <div class="mt-2 font-mono text-sm text-white">NoSQLStore.crawler_queue</div>
+      <div class="mt-1 text-xs text-slate-400">FIFO list with per-job capacity guards</div>
+    </div>
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+      <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        <i class="fa-solid fa-shield-halved text-emerald-300"></i> Dedup
+      </div>
+      <div class="mt-2 font-mono text-sm text-white">SHA-256 + TTL</div>
+      <div class="mt-1 text-xs text-slate-400">Freshness-aware visited set</div>
+    </div>
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+      <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        <i class="fa-solid fa-sitemap text-violet-300"></i> Index
+      </div>
+      <div class="mt-2 font-mono text-sm text-white">AtlasTrie</div>
+      <div class="mt-1 text-xs text-slate-400">Per-node URL → frequency metadata</div>
+    </div>
+    <div class="rounded-xl border border-white/10 bg-slate-900/60 p-4">
+      <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        <i class="fa-solid fa-database text-amber-300"></i> Persistence
+      </div>
+      <div class="mt-2 font-mono text-sm text-white">JSON + ETL</div>
+      <div class="mt-1 text-xs text-slate-400">Atomic flush &amp; flat-file export</div>
+    </div>
+  </div>
+</section>
+{% endblock %}
